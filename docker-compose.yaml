@@ -1,0 +1,37 @@
+services:
+  # --- Backend Service ---
+  backend:
+    build: ./backend
+    container_name: vehicle_backend
+    ports:
+      - "8000:8000"
+    
+    # NEW: This tells Docker to load all variables from your file
+    env_file:
+      - ./backend/.env
+      
+    volumes:
+      # We map the host folder (backend/vector_store) to the container folder (/app/vector_store).
+      # This works perfectly with your .env setting: VECTOR_DIR=./vector_store
+      - ./backend/vector_store:/app/vector_store
+      
+    networks:
+      - app_network
+
+  # --- Frontend Service ---
+  frontend:
+    build: ./frontend
+    container_name: vehicle_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Frontend still needs this explicitly because it's a build-time/run-time logic for Next.js
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge

@@ -1,0 +1,29 @@
+# Use the official Python 3.11 slim image (smaller, lighter)
+FROM python:3.11-slim
+
+# 1. Install system dependencies required for PDF tools (PyMuPDF/OCR)
+# build-essential is often needed for compiling python libraries
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    tesseract-ocr \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Set the working directory inside the container
+WORKDIR /app
+
+# 3. Copy dependencies file first (for better Docker caching)
+COPY requirements.txt .
+
+# 4. Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 5. Copy the rest of the backend code
+COPY . .
+
+# 6. Expose port 8000 (The default FastAPI port)
+EXPOSE 8000
+
+# 7. Command to run the application
+# --host 0.0.0.0 is crucial! It allows external access to the container.
+CMD ["uvicorn", "fastapi_server:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,23 @@
+{
+  "collection": "car_manuals",
+  "persist_dir": "./vector_store",
+  "sources": [
+    {
+      "document": "./uploaded_documents/README.md",
+      "file_type": "MARKDOWN",
+      "uid": "README_c2c78a29a34e6f3c",
+      "file_hash": "c2c78a29a34e6f3c",
+      "num_pages": 1,
+      "chunks": [
+        {
+          "id": "README_c2c78a29a34e6f3c_chunk_0",
+          "page": 1,
+          "char_len": 13
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "total_chunks": 1,
+  "skipped_files": []
+}

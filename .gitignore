@@ -1,3 +1,34 @@
+# --- System & IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Environment Variables (CRITICAL) ---
+.env
+.env.local
+.env.production
+
+# --- Python / Backend ---
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+*.egg-info/
+backend/vector_store/   # Ignore the actual database files (too large)
+
+# --- Node / Frontend ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# --- Docker ---
+docker-compose.override.yml
+
 .venv
 *__pycache__/
 *.pyc
@@ -9,5 +40,5 @@ node_modules
 npm-debug.log*
 yarn-error.log
 dist
-models
 build
+documents/
