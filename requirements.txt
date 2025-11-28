@@ -4,3 +4,8 @@ chromadb>=0.3.29
 sentence-transformers>=2.2.2   # only if using local embeddings
 openai>=0.27.0                 # only if using OpenAI embeddings
 tiktoken                       # optional but useful for token-based chunking
+fastapi
+uvicorn[standard]
+pymupdf
+pytesseract
+pdf2image

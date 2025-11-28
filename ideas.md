@@ -1,3 +1,17 @@
+Commands
+
+curl -X POST "http://localhost:8000/ingest" \
+  -F "/Users/cylis/Projects/vehicle_maintenance/pdfs/wikiHonda_CR-V.pdf" \
+  -F "collection_name=my_car_manuals"
+
+simpler
+
+curl -X POST "http://localhost:8000/ingest" \
+  -F "file=@/Users/cylis/Projects/vehicle_maintenance/pdfs/wikiHonda_CR-V.pdf"
+
+
+
+
 use a RAG (Retreival Augmented QA) System
 
 embeds the pdfs into a vector database then uses an LLM o top to get the data and answer questions

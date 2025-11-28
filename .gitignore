@@ -1,0 +1,13 @@
+.venv
+*__pycache__/
+*.pyc
+.env
+.DS_Store
+.vscode
+node_modules
+/.next
+npm-debug.log*
+yarn-error.log
+dist
+models
+build
