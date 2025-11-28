@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import ChatMessage from "../../components/ChatMessage";
 import Loader from "../../components/Loader";
 
@@ -8,6 +8,16 @@ export default function AskPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
 
   const ask = async () => {
     if (!question.trim()) return;
@@ -15,6 +25,7 @@ export default function AskPage() {
 
     const userMsg = { role: "user", content: question };
     setMessages((m) => [...m, userMsg]);
+    setQuestion("");
 
     try {
       const res = await fetch("/api/query", {
@@ -32,37 +43,61 @@ export default function AskPage() {
       setMessages((m) => [...m, botMsg]);
     }
 
-    setQuestion("");
     setLoading(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      ask();
+    }
+  };
+
   return (
-    <main className="max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Ask a Question</h1>
+    <main className="page-container">
+      
+      <div className="header-row">
+        <h1>Ask a Question</h1>
+        <a href="/ingest" className="upload-link">
+          Upload Manuals
+        </a>
+      </div>
 
-      <a href="/ingest" className="text-blue-600 underline">
-        Upload Manuals
-      </a>
-
-      <div className="space-y-4 mb-6">
+      <div className="chat-window">
+        {messages.length === 0 && (
+          <p className="empty-state">
+            No messages yet. Ask something about your vehicle!
+          </p>
+        )}
+        
         {messages.map((msg, idx) => (
           <ChatMessage key={idx} role={msg.role} content={msg.content} />
         ))}
-        {loading && <Loader />}
+        
+        {loading && (
+           <div className="message-row assistant">
+             <div className="bubble assistant">
+               <Loader />
+             </div>
+           </div>
+        )}
+        
+        <div ref={messagesEndRef} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="input-area">
         <input
-          className="flex-1 border rounded px-3 py-2"
+          className="chat-input"
           placeholder="e.g. When is my next oil change?"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={handleKeyDown}
         />
         <button
           onClick={ask}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          disabled={loading}
+          className="send-button"
         >
-          Ask
+          {loading ? "..." : "Ask"}
         </button>
       </div>
     </main>
