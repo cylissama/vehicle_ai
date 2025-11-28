@@ -1,5 +1,5 @@
-# fastapi_server.py
-from fastapi import FastAPI, UploadFile, File, Form
+# fastapi_server.py - Multi-format document support
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
@@ -8,9 +8,23 @@ import shutil
 import logging
 import uvicorn
 from dotenv import load_dotenv
+from pathlib import Path
+from pydantic import HttpUrl
+import requests
+from bs4 import BeautifulSoup
+import hashlib
+import time
+
 
 import chromadb
-from rag.ingest import ingest_pdfs, LocalSentenceEmbedder, compute_file_hash, check_document_exists
+from rag.ingest import (
+    ingest_documents, 
+    LocalSentenceEmbedder, 
+    compute_file_hash, 
+    check_document_exists,
+    SUPPORTED_EXTENSIONS,
+    chunk_text,
+)
 
 # -------------------------
 # Load environment variables
@@ -67,7 +81,7 @@ gemini_model = genai.GenerativeModel(GEMINI_MODEL)
 # -------------------------
 # FastAPI setup
 # -------------------------
-app = FastAPI(title="Vehicle Maintenance RAG API")
+app = FastAPI(title="Vehicle Maintenance RAG API - Multi-Format Support")
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,6 +108,19 @@ class QueryResponse(BaseModel):
     source_chunks: List[dict]
 
 # -------------------------
+# Helper function
+# -------------------------
+def is_supported_file(filename: str) -> bool:
+    """Check if file extension is supported."""
+    ext = Path(filename).suffix.lower()
+    return ext in SUPPORTED_EXTENSIONS
+
+def get_file_type_name(filename: str) -> str:
+    """Get human-readable file type name."""
+    ext = Path(filename).suffix.lower()
+    return SUPPORTED_EXTENSIONS.get(ext, "Unknown")
+
+# -------------------------
 # Routes
 # -------------------------
 @app.get("/status")
@@ -103,7 +130,28 @@ def status():
         "collection": COLLECTION_NAME,
         "vector_dir": os.path.abspath(VECTOR_DIR),
         "model": GEMINI_MODEL,
-        "total_chunks": collection.count()
+        "total_chunks": collection.count(),
+        "supported_formats": list(SUPPORTED_EXTENSIONS.keys())
+    }
+
+@app.get("/supported_formats")
+def supported_formats():
+    """List all supported file formats."""
+    return {
+        "formats": [
+            {"extension": ext, "type": name}
+            for ext, name in SUPPORTED_EXTENSIONS.items()
+        ],
+        "upload_instructions": {
+            "pdf": "PDFs with OCR support for scanned documents",
+            "docx": "Microsoft Word documents (.docx)",
+            "doc": "Legacy Word documents (.doc) - requires pandoc",
+            "txt": "Plain text files",
+            "rtf": "Rich Text Format - requires pandoc",
+            "odt": "OpenDocument Text - requires pandoc",
+            "html": "HTML/HTM web pages",
+            "md": "Markdown files"
+        }
     }
 
 @app.get("/collections")
@@ -122,6 +170,45 @@ def peek_collection():
         "sample_metadata": result.get("metadatas", [])[:3]
     }
 
+@app.get("/collection_stats")
+def collection_stats():
+    """Get detailed statistics about the collection"""
+    count = collection.count()
+    
+    if count > 0:
+        result = collection.get(limit=count, include=["metadatas"])
+        metadatas = result.get("metadatas", [])
+        
+        # Count chunks per source and file type
+        source_counts = {}
+        file_type_counts = {}
+        file_hashes = set()
+        
+        for meta in metadatas:
+            source = meta.get("source_filename", meta.get("source", "unknown"))
+            file_type = meta.get("file_type", "unknown")
+            file_hash = meta.get("file_hash")
+            
+            if file_hash:
+                file_hashes.add(file_hash)
+            
+            source_counts[source] = source_counts.get(source, 0) + 1
+            file_type_counts[file_type] = file_type_counts.get(file_type, 0) + 1
+        
+        return {
+            "collection_name": COLLECTION_NAME,
+            "total_chunks": count,
+            "unique_documents": len(file_hashes),
+            "file_types": file_type_counts,
+            "sources": source_counts
+        }
+    else:
+        return {
+            "collection_name": COLLECTION_NAME,
+            "total_chunks": 0,
+            "message": "Collection is empty"
+        }
+
 @app.get("/list_documents")
 def list_documents():
     """List all unique documents in the collection by file hash"""
@@ -134,7 +221,6 @@ def list_documents():
                 "documents": []
             }
         
-        # Get all metadata
         result = collection.get(include=["metadatas"])
         metadatas = result.get("metadatas", [])
         
@@ -146,6 +232,7 @@ def list_documents():
                 docs_by_hash[file_hash] = {
                     "file_hash": file_hash,
                     "filename": meta.get("source_filename", "unknown"),
+                    "file_type": meta.get("file_type", "unknown"),
                     "path": meta.get("absolute_path", "unknown"),
                     "chunk_count": 0,
                     "pages": set()
@@ -169,48 +256,6 @@ def list_documents():
         logger.error(f"Error listing documents: {e}")
         return {"error": str(e)}
 
-@app.get("/collection_stats")
-def collection_stats():
-    """Get detailed statistics about the collection"""
-    count = collection.count()
-    
-    # Get all metadata to analyze sources
-    if count > 0:
-        result = collection.get(limit=count, include=["metadatas"])
-        metadatas = result.get("metadatas", [])
-        
-        # Count chunks per source
-        source_counts = {}
-        page_counts = {}
-        file_hashes = set()
-        
-        for meta in metadatas:
-            source = meta.get("source_filename", meta.get("source", "unknown"))
-            page = meta.get("page", "?")
-            file_hash = meta.get("file_hash")
-            
-            if file_hash:
-                file_hashes.add(file_hash)
-            
-            source_counts[source] = source_counts.get(source, 0) + 1
-            page_key = f"{source}:page_{page}"
-            page_counts[page_key] = page_counts.get(page_key, 0) + 1
-        
-        return {
-            "collection_name": COLLECTION_NAME,
-            "total_chunks": count,
-            "unique_sources": len(source_counts),
-            "unique_documents": len(file_hashes),
-            "sources": source_counts,
-            "top_pages": dict(sorted(page_counts.items(), key=lambda x: x[1], reverse=True)[:10])
-        }
-    else:
-        return {
-            "collection_name": COLLECTION_NAME,
-            "total_chunks": 0,
-            "message": "Collection is empty"
-        }
-
 @app.get("/search_by_source")
 def search_by_source(source_name: str, limit: int = 10):
     """Search for chunks from a specific source file"""
@@ -226,6 +271,7 @@ def search_by_source(source_name: str, limit: int = 10):
         "chunks": [
             {
                 "page": meta.get("page"),
+                "file_type": meta.get("file_type"),
                 "full_text": doc,
                 "preview": doc[:200] + "..." if len(doc) > 200 else doc,
                 "char_len": meta.get("char_len")
@@ -237,11 +283,14 @@ def search_by_source(source_name: str, limit: int = 10):
 @app.post("/check_duplicate")
 async def check_duplicate(file: UploadFile = File(...)):
     """
-    Check if a PDF has already been ingested without actually ingesting it.
+    Check if a document has already been ingested without actually ingesting it.
     Returns the file hash and whether it exists in the collection.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        return {"error": "Only PDF files accepted."}
+    # Check if file type is supported
+    if not is_supported_file(file.filename):
+        return {
+            "error": f"Unsupported file type. Supported formats: {list(SUPPORTED_EXTENSIONS.keys())}"
+        }
     
     # Save temporarily to compute hash
     target_dir = "./temp_checks"
@@ -260,6 +309,7 @@ async def check_duplicate(file: UploadFile = File(...)):
         
         return {
             "filename": file.filename,
+            "file_type": get_file_type_name(file.filename),
             "file_hash": file_hash,
             "already_ingested": exists,
             "message": "Document already exists in collection" if exists else "Document is new"
@@ -270,26 +320,20 @@ async def check_duplicate(file: UploadFile = File(...)):
 
 @app.post("/debug_query")
 async def debug_query(req: DebugQueryRequest):
-    """
-    Debug endpoint - shows exactly what the vector search returns
-    before it goes to the LLM. This helps diagnose retrieval issues.
-    """
+    """Debug endpoint - shows exactly what the vector search returns"""
     question = req.question
     top_k = req.top_k
     
     logger.info(f"Debug query: {question}")
     
-    # Get embedding for question
     q_embedding = local_embedder.embed_texts([question])[0]
     
-    # Query vector DB
     result = collection.query(
         query_embeddings=[q_embedding],
         n_results=top_k,
         include=["documents", "metadatas", "distances"]
     )
     
-    # Format results for debugging
     chunks = []
     if "documents" in result and result["documents"]:
         docs_list = result["documents"][0]
@@ -301,6 +345,7 @@ async def debug_query(req: DebugQueryRequest):
                 "rank": i + 1,
                 "distance": round(dist, 4),
                 "source": meta.get("source_filename", meta.get("source", "unknown")),
+                "file_type": meta.get("file_type", "unknown"),
                 "page": meta.get("page", "?"),
                 "char_len": meta.get("char_len", 0),
                 "token_len": meta.get("token_len", 0),
@@ -316,31 +361,31 @@ async def debug_query(req: DebugQueryRequest):
     }
 
 @app.post("/ingest")
-async def ingest_uploaded_pdf(
+async def ingest_uploaded_document(
     file: UploadFile = File(...), 
     collection_name: str = Form(None),
     force_reingest: bool = Form(False)
 ):
     """
-    Upload and ingest a single PDF using the robust rag/ingest.py module.
-    Includes OCR fallback for scanned pages and duplicate detection.
-    
-    Args:
-        file: The PDF file to upload
-        collection_name: Optional collection name (defaults to COLLECTION_NAME)
-        force_reingest: If True, re-ingest even if document already exists
+    Upload and ingest a document of any supported format.
+    Supports: PDF, DOC, DOCX, TXT, RTF, ODT, HTML, MD
+    Includes OCR fallback for scanned PDFs.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        return {"error": "Only PDF uploads accepted."}
+    # Check if file type is supported
+    if not is_supported_file(file.filename):
+        return {
+            "error": f"Unsupported file type. Supported formats: {list(SUPPORTED_EXTENSIONS.keys())}",
+            "supported_formats": list(SUPPORTED_EXTENSIONS.keys())
+        }
 
-    target_dir = "./uploaded_pdfs"
+    target_dir = "./uploaded_documents"
     os.makedirs(target_dir, exist_ok=True)
     dest_path = os.path.join(target_dir, file.filename)
 
     with open(dest_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    logger.info(f"Saved uploaded PDF to: {dest_path}")
+    logger.info(f"Saved uploaded document to: {dest_path}")
 
     # Determine which collection to use
     coll_name = collection_name or COLLECTION_NAME
@@ -361,14 +406,15 @@ async def ingest_uploaded_pdf(
                 "ok": True,
                 "already_existed": True,
                 "filename": file.filename,
+                "file_type": get_file_type_name(file.filename),
                 "file_hash": file_hash,
                 "message": "Document was already in the collection. Use force_reingest=true to re-ingest.",
                 "chunks_created": 0
             }
 
     try:
-        manifest = ingest_pdfs(
-            pdf_paths=[dest_path],
+        manifest = ingest_documents(
+            doc_paths=[dest_path],
             persist_dir=VECTOR_DIR,
             collection_name=coll_name,
             provider="local",
@@ -388,21 +434,150 @@ async def ingest_uploaded_pdf(
             "ok": True,
             "already_existed": False,
             "filename": file.filename,
+            "file_type": get_file_type_name(file.filename),
             "chunks_created": manifest.get("total_chunks", 0),
             "skipped_files": manifest.get("skipped_files", []),
+            "errors": manifest.get("errors", []),
             "manifest": manifest
         }
     except Exception as e:
-        logger.error(f"Error ingesting PDF: {e}")
+        logger.error(f"Error ingesting document: {e}")
         return {"ok": False, "error": str(e)}
+    
+
+# -------------------------
+# URL Ingestion Route
+# -------------------------
+class URLIngestRequest(BaseModel):
+    url: HttpUrl
+    collection_name: Optional[str] = None
+    force_reingest: bool = False
+
+
+@app.post("/ingest_url")
+async def ingest_url(req: URLIngestRequest):
+    """
+    Fetch a webpage, extract readable text, chunk it, embed it, and store in Chroma.
+    Fully integrated with the existing ingest logic (duplicate detection, metadata, stats, etc.)
+    """
+
+    url = req.url
+    coll_name = req.collection_name or COLLECTION_NAME
+    force_reingest = req.force_reingest
+
+    logger.info(f"Ingesting URL: {url}")
+
+    # Get or create the collection
+    try:
+        target_collection = chroma_client.get_collection(name=coll_name)
+    except Exception:
+        logger.info(f"Creating new collection: {coll_name}")
+        target_collection = chroma_client.create_collection(name=coll_name)
+
+    # Deterministic hash for URL-based document identity
+    url_hash = hashlib.sha256(str(url).encode("utf-8")).hexdigest()
+
+    # Duplicate check
+    if not force_reingest:
+        if check_document_exists(target_collection, url_hash):
+            logger.info(f"URL already ingested (hash={url_hash}): {url}")
+            return {
+                "ok": True,
+                "already_existed": True,
+                "url": url,
+                "file_type": "url/html",
+                "file_hash": url_hash,
+                "message": "URL was already in the collection. Use force_reingest=true to re-ingest.",
+                "chunks_created": 0
+            }
+
+    # ----------------------------------------------------------------
+    # STEP 1 — Download the webpage
+    # ----------------------------------------------------------------
+    try:
+        response = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        response.raise_for_status()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+
+    # ----------------------------------------------------------------
+    # STEP 2 — Extract readable text
+    # ----------------------------------------------------------------
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Remove non-content sections
+    for tag in soup(["script", "style", "header", "footer", "nav", "noscript"]):
+        tag.decompose()
+
+    full_text = soup.get_text(separator="\n")
+    full_text = "\n".join(line.strip() for line in full_text.splitlines() if line.strip())
+
+    if len(full_text) < 40:
+        raise HTTPException(status_code=400, detail="Not enough readable text extracted from webpage.")
+
+    logger.info(f"Extracted {len(full_text)} characters of text from URL")
+
+    # ----------------------------------------------------------------
+    # STEP 3 — Create chunk structure expected by existing chunker
+    # ----------------------------------------------------------------
+    fake_pages = [{"page": 1, "text": full_text}]  # treat as one long "page"
+
+    chunks = chunk_text(
+        pages=fake_pages,
+        doc_uid=url_hash,  # <--- Pass the hash here!
+        chunk_size=1200,
+        overlap=200,
+        use_token=False
+    )
+
+    if not chunks:
+        raise HTTPException(status_code=500, detail="Chunker returned zero chunks.")
+
+    logger.info(f"Created {len(chunks)} chunks from URL")
+
+    # ----------------------------------------------------------------
+    # STEP 4 — Embed & store chunks in Chroma
+    # ----------------------------------------------------------------
+    ids, metadatas, documents = [], [], []
+
+    timestamp = int(time.time())
+    base_id = f"url_{timestamp}"
+
+    for c in chunks:
+        chunk_id = f"{base_id}_chunk_{c['chunk_index']}"
+        ids.append(chunk_id)
+        documents.append(c["text"])
+        metadatas.append({
+            "source": str(url),
+            "source_filename": str(url),
+            "file_type": "url/html",
+            "file_hash": url_hash,
+            "page": c["page"],
+            "chunk_index": c["chunk_index"],
+            "char_len": c["char_len"]
+        })
+
+    embeddings = local_embedder.embed_texts(documents)
+    target_collection.add(ids=ids, documents=documents, metadatas=metadatas, embeddings=embeddings)
+
+    logger.info(f"Stored {len(ids)} URL chunks in collection {coll_name}")
+
+    # ----------------------------------------------------------------
+    # STEP 5 — Return response
+    # ----------------------------------------------------------------
+    return {
+        "ok": True,
+        "url": str(url),
+        "file_type": "url/html",
+        "file_hash": url_hash,
+        "chunks": len(chunks),
+        "collection": coll_name
+    }
 
 @app.delete("/remove_document")
 async def remove_document(file_hash: str):
-    """
-    Remove all chunks associated with a specific document by its file hash.
-    """
+    """Remove all chunks associated with a specific document by its file hash."""
     try:
-        # Get all IDs for this document
         result = collection.get(
             where={"file_hash": file_hash},
             include=["metadatas"]
@@ -416,7 +591,6 @@ async def remove_document(file_hash: str):
                 "message": f"No document found with hash: {file_hash}"
             }
         
-        # Delete the chunks
         collection.delete(ids=ids_to_delete)
         
         return {
@@ -438,8 +612,9 @@ def build_prompt(question: str, chunks: List[dict]) -> str:
         meta = c.get("metadata", {})
         page = meta.get("page", "?")
         source = meta.get("source_filename", meta.get("source", "manual"))
+        file_type = meta.get("file_type", "")
         snippet = c.get("document")[:600] if c.get("document") else ""
-        context_lines.append(f"{source} (page {page}):\n{snippet}")
+        context_lines.append(f"{source} ({file_type}, page {page}):\n{snippet}")
     context_block = "\n\n---\n\n".join(context_lines)
     return context_block
 
@@ -501,9 +676,10 @@ def query(req: QueryRequest):
         for d in docs:
             meta = d.get("metadata", {})
             source = meta.get("source_filename", meta.get("source", "manual"))
+            file_type = meta.get("file_type", "")
             page = meta.get("page", "?")
             snippet_text = d.get("document")[:600] if d.get("document") else ""
-            snippets.append(f"{source} (page {page}):\n{snippet_text}")
+            snippets.append(f"{source} ({file_type}, page {page}):\n{snippet_text}")
         answer = "Retrieved context (no LLM):\n\n" + "\n\n---\n\n".join(snippets) if snippets else "No relevant context found in the vector store."
 
     return QueryResponse(answer=answer, source_chunks=docs)

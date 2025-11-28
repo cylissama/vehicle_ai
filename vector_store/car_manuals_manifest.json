@@ -3,274 +3,31 @@
   "persist_dir": "./vector_store",
   "sources": [
     {
-      "pdf": "./uploaded_pdfs/wikiHonda_CR-V.pdf",
-      "uid": "wikiHonda_CR-V_aaec867a2cb8b334",
-      "file_hash": "aaec867a2cb8b334",
-      "num_pages": 10,
+      "document": "./uploaded_documents/honda-facts.txt",
+      "file_type": "TXT",
+      "uid": "honda-facts_41f67a3217110c34",
+      "file_hash": "41f67a3217110c34",
+      "num_pages": 1,
       "chunks": [
         {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_0",
+          "id": "honda-facts_41f67a3217110c34_chunk_0",
           "page": 1,
           "char_len": 1200
         },
         {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_1",
+          "id": "honda-facts_41f67a3217110c34_chunk_1",
           "page": 1,
           "char_len": 1200
         },
         {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_2",
+          "id": "honda-facts_41f67a3217110c34_chunk_2",
           "page": 1,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_3",
-          "page": 1,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_4",
-          "page": 1,
-          "char_len": 246
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_5",
-          "page": 2,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_6",
-          "page": 2,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_7",
-          "page": 2,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_8",
-          "page": 2,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_9",
-          "page": 2,
-          "char_len": 1018
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_10",
-          "page": 2,
-          "char_len": 18
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_11",
-          "page": 3,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_12",
-          "page": 3,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_13",
-          "page": 3,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_14",
-          "page": 3,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_15",
-          "page": 3,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_16",
-          "page": 3,
-          "char_len": 644
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_17",
-          "page": 4,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_18",
-          "page": 4,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_19",
-          "page": 4,
-          "char_len": 1087
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_20",
-          "page": 4,
-          "char_len": 87
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_21",
-          "page": 5,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_22",
-          "page": 5,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_23",
-          "page": 5,
-          "char_len": 989
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_24",
-          "page": 6,
-          "char_len": 415
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_25",
-          "page": 7,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_26",
-          "page": 7,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_27",
-          "page": 7,
-          "char_len": 981
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_28",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_29",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_30",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_31",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_32",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_33",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_34",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_35",
-          "page": 8,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_36",
-          "page": 8,
-          "char_len": 755
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_37",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_38",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_39",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_40",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_41",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_42",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_43",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_44",
-          "page": 9,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_45",
-          "page": 9,
-          "char_len": 247
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_46",
-          "page": 10,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_47",
-          "page": 10,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_48",
-          "page": 10,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_49",
-          "page": 10,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_50",
-          "page": 10,
-          "char_len": 1200
-        },
-        {
-          "id": "wikiHonda_CR-V_aaec867a2cb8b334_chunk_51",
-          "page": 10,
-          "char_len": 974
+          "char_len": 980
         }
       ]
     }
   ],
-  "total_chunks": 52,
+  "errors": [],
+  "total_chunks": 3,
   "skipped_files": []
 }
